@@ -1,5 +1,9 @@
 #!make
 
+ifeq (,$(wildcard ./.env))
+$(error No se encuentra el fichero .env)
+endif
+
 help: _header
 	${info }
 	@echo Opciones:
