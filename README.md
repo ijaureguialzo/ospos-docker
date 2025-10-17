@@ -2,6 +2,14 @@
 
 Configuración para arrancar [OSPOS](https://opensourcepos.org) en Docker.
 
+## Puesta en marcha
+
+```shell
+make start
+```
+
+Credenciales: `admin` / `pointofsale`
+
 ## Referencias
 
 - [Open Source Point of Sale](https://opensourcepos.org)
