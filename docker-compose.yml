@@ -1,0 +1,67 @@
+services:
+
+  traefik:
+    image: traefik:${TRAEFIK_VERSION:-3}
+    ports:
+      - "80:80"
+      - "443:443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}-dashboard.rule=Host(`${FQDN_TRAEFIK:-traefik.test}`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}-dashboard.service=api@internal"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.${COMPOSE_PROJECT_NAME}-dashboard.tls=true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+    depends_on:
+      - ospos
+
+  sqlscript:
+    image: jekkos/opensourcepos:sql-${OSPOS_VERSION}
+    command: /bin/sh -c 'exit 0'
+
+  ospos:
+    image: jekkos/opensourcepos:${OSPOS_VERSION}
+    platform: linux/amd64
+    depends_on:
+      - mysql
+    volumes:
+      - uploads:/app/public/uploads
+      - logs:/app/writable/logs
+    environment:
+      - CI_ENVIRONMENT=production
+      - FORCE_HTTPS=true
+      - PHP_TIMEZONE=UTC
+      - MYSQL_HOST_NAME=mysql
+      - MYSQL_DB_NAME=${MYSQL_DATABASE}
+      - MYSQL_USERNAME=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ospos.rule=Host(`${FQDN_OSPOS:-ospos.test}`)"
+      - "traefik.http.routers.ospos.entrypoints=websecure"
+      - "traefik.http.routers.ospos.tls=true"
+      - "traefik.http.services.ospos.loadbalancer.server.port=80"
+
+  mysql:
+    image: mariadb:${MARIADB_VERSION}
+    container_name: mysql
+    expose:
+      - "3306"
+    volumes_from:
+      - sqlscript
+    volumes:
+      - mysql:/var/lib/mysql:rw
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+
+volumes:
+  uploads:
+  logs:
+  mysql:
